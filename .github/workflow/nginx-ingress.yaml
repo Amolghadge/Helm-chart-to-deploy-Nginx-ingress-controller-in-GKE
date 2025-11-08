@@ -46,25 +46,21 @@ jobs:
       - name: Lint Helm chart
         run: |
           helm lint ${{ env.HELM_CHART_PATH }}
-
       - name: Template Helm chart
         run: |
           helm template nginx-ingress ${{ env.HELM_CHART_PATH }} \
             --namespace ${{ env.NAMESPACE }} \
             --debug
-
       - name: Install kubeconform for validation
         run: |
           wget https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
           tar xf kubeconform-linux-amd64.tar.gz
           sudo mv kubeconform /usr/local/bin/
-
       - name: Validate Kubernetes manifests
         run: |
           helm template nginx-ingress ${{ env.HELM_CHART_PATH }} \
             --namespace ${{ env.NAMESPACE }} | \
             kubeconform -strict -summary
-
   deploy-to-gke:
     name: Deploy to GKE
     runs-on: ubuntu-latest
@@ -90,13 +86,11 @@ jobs:
       - name: Configure Docker for GCR
         run: |
           gcloud auth configure-docker
-
       - name: Get GKE credentials
         run: |
           gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} \
             --zone ${{ env.GKE_ZONE }} \
             --project ${{ env.GCP_PROJECT_ID }}
-
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
@@ -105,12 +99,10 @@ jobs:
       - name: Create namespace if not exists
         run: |
           kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
-
       - name: Add Helm repositories (if using dependencies)
         run: |
           helm repo add stable https://charts.helm.sh/stable
           helm repo update
-
       - name: Deploy Helm chart
         run: |
           helm upgrade --install nginx-ingress ${{ env.HELM_CHART_PATH }} \
@@ -121,13 +113,11 @@ jobs:
             --atomic \
             --cleanup-on-fail \
             --values ${{ env.HELM_CHART_PATH }}/values.yaml
-
       - name: Verify deployment
         run: |
           kubectl rollout status deployment/nginx-ingress-nginx-ingress-controller \
             -n ${{ env.NAMESPACE }} \
             --timeout=5m
-
       - name: Get LoadBalancer IP
         id: get-lb-ip
         run: |
@@ -145,13 +135,11 @@ jobs:
             echo "Waiting for LoadBalancer IP... attempt $i/30"
             sleep 10
           done
-
       - name: Run deployment tests
         run: |
           kubectl get pods -n ${{ env.NAMESPACE }}
           kubectl get svc -n ${{ env.NAMESPACE }}
           kubectl describe deployment nginx-ingress-nginx-ingress-controller -n ${{ env.NAMESPACE }}
-
       - name: Post deployment summary
         if: always()
         run: |
@@ -165,7 +153,6 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           kubectl get all -n ${{ env.NAMESPACE }} >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-
   rollback:
     name: Rollback on Failure
     runs-on: ubuntu-latest
@@ -185,7 +172,6 @@ jobs:
           gcloud container clusters get-credentials ${{ env.GKE_CLUSTER_NAME }} \
             --zone ${{ env.GKE_ZONE }} \
             --project ${{ env.GCP_PROJECT_ID }}
-
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
@@ -194,7 +180,6 @@ jobs:
       - name: Rollback Helm release
         run: |
           helm rollback nginx-ingress -n ${{ env.NAMESPACE }} || echo "No previous revision to rollback to"
-
       - name: Notify rollback
         run: |
           echo "## ⚠️ Deployment Failed - Rollback Initiated" >> $GITHUB_STEP_SUMMARY
